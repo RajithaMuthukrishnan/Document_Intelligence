@@ -28,3 +28,12 @@ This project showcases a modern approach to retrieval-augmented generation (RAG)
 
 ## References
 1. The President and Fellows of Harvard University. "Caselaw Access Project." 2024, [https://case.law/caselaw/]
+
+## Demo
+### Homepage
+<img width="1158" height="806" alt="Homepage" src="https://github.com/user-attachments/assets/cd73ce47-900a-4e74-92ba-9a3e9da588a7" />
+
+### Summary Tool
+<img width="1155" height="726" alt="Summarytool" src="https://github.com/user-attachments/assets/0472fa68-cd0b-4cda-bef4-d8fc2137ebcd" />
+<img width="1159" height="866" alt="summaries" src="https://github.com/user-attachments/assets/7ee3270e-64c6-4553-86f6-37b735872b4a" />
+<img width="1159" height="863" alt="summarymodal" src="https://github.com/user-attachments/assets/b97b3a3c-fb7b-4ba7-8a63-11af67f37c25" />
