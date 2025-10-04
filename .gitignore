@@ -4,3 +4,4 @@ __pycache__/
 /backend/flask_session/
 /backend/project_temp/
 /frontend/package-lock.json
+.DS_Store
