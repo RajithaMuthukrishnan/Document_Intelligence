@@ -3,9 +3,10 @@ import { useState, type ChangeEvent } from "react";
 
 interface UploadSectionProps {
     onUploadComplete: (status: boolean) => void;
+    tool: 'summary' | 'qa';
 }
 
-function UploadSection({ onUploadComplete }: UploadSectionProps) {
+function UploadSection({ onUploadComplete, tool }: UploadSectionProps) {
     const [fileList, setFileList] = useState<FileList | null>(null);
 
     const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -29,8 +30,11 @@ function UploadSection({ onUploadComplete }: UploadSectionProps) {
         Array.from(fileList).forEach(file => {
             formData.append('files', file);
         });
-        
+        formData.append('tool', tool);
+
+        console.log(formData)
         console.log("FormData prepared for upload:", formData.getAll('files'));
+        console.log("FormData prepared for upload:", formData.getAll('source'));
         // Use fetch and POST to send formData to the backend
         
         try{

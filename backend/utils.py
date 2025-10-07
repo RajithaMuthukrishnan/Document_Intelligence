@@ -7,7 +7,8 @@ from langchain.schema import Document
 from langchain_core.output_parsers import StrOutputParser
 from langgraph.types import Send
 from langgraph.graph import END, START, StateGraph
-
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
 
 
 # HELPER FUNCTIONS FOR BACKEND
@@ -60,12 +61,8 @@ def extract_data(file_list):
 
 
 
-async def summarize_docs(documents):
+async def summarize_docs(documents, llm):
     new_docs = copy.deepcopy(documents)
-    
-    llm_model = OllamaLLM(
-        model = "mistral"
-    )
     
     map_template = "Write a concise summary based only on the context given below and not on your knowledge:\n{context}"
     reduce_template = """
@@ -76,8 +73,8 @@ Take these and distill it into a final, consolidated summary of the main themes.
     map_prompt = ChatPromptTemplate([("human"), map_template])
     reduce_prompt = ChatPromptTemplate([("human"), reduce_template])
     
-    map_chain = map_prompt | llm_model | StrOutputParser()
-    reduce_chain = reduce_prompt | llm_model | StrOutputParser()
+    map_chain = map_prompt | llm | StrOutputParser()
+    reduce_chain = reduce_prompt | llm | StrOutputParser()
     
     # overall state of the main graph - contains the input document contents,
     # corresponding summaries, and a final summary.
@@ -117,3 +114,17 @@ Take these and distill it into a final, consolidated summary of the main themes.
     new_docs.append(Document(metadata={'title':'final_summary'}, page_content=results['final_summary']))
 
     return new_docs
+
+
+async def chunk_embed(documents, embedding_model):
+    # chunk the docs
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=100,
+        add_start_index=True,
+    )
+    chunks = text_splitter.split_documents(documents)
+
+    # Embed and store the chunks in-memory [MVP] : To be changed to persistance DB in the next iteration
+    faiss_vectorstore = FAISS.from_documents(chunks, embedding_model)
+    return faiss_vectorstore

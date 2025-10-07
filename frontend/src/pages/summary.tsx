@@ -51,7 +51,7 @@ function SummaryPage() {
                 <h1 className="text-center mt-5 mb-4"> Case Insights - Summarization Tool</h1>
                 <p className="text-center fst-italic">Disclaimer: This tool demonstrates applied AI capabilities. Outputs are automatically generated and may not be fully accurate; users should independently verify results before relying on them.</p>
             </Container>
-            <UploadSection onUploadComplete={setIsUploaded}/>
+            <UploadSection onUploadComplete={setIsUploaded} tool="summary"/>
             {/* create a button to generate summary */}
             <div className="text-center mt-4">
                 <Button disabled={!isUploaded} variant="success" size="lg" onClick={handleGenerateSummaryClick}>{loading ? "Generating..." : "Generate Summary"}</Button>

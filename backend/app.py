@@ -4,8 +4,15 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import uuid
 import os
-from utils import extract_data, summarize_docs
+from utils import extract_data, summarize_docs, chunk_embed
 import asyncio
+from langchain_ollama import OllamaLLM
+from langchain_ollama import OllamaEmbeddings
+from langchain_core.prompts import ChatPromptTemplate
+from typing_extensions import List, TypedDict
+from langchain.schema import Document
+from langgraph.graph import START, StateGraph
+from langchain_community.vectorstores import FAISS
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=["http://127.0.0.1:5173"])  # Enable CORS with credentials support
@@ -21,20 +28,51 @@ Session(app)
 PROJECT_TEMP_DIR = os.path.join(os.path.dirname(__file__), "project_temp")
 os.makedirs(PROJECT_TEMP_DIR, exist_ok=True)  # create if not exists
 UPLOAD_DIR = PROJECT_TEMP_DIR
+# Temporary storage for the vectorstore - Global cache for active vector stores
+VECTOR_STORE_CACHE = {}
 
-# Extract the text from each file and store it in a variable for now
-# Chuck each file's text
-# Create embeddings for each chunk
-# Store the embeddings in a variable for now. Later use vector database (Pinecone, Weaviate, etc.)
-# Send the embeddings to send to the LLM model Mistral and get the response back
-# Send the response back to the frontend
+# Instantiate the models and prompt
+embedding_model = OllamaEmbeddings(
+    model = "all-minilm:l6-v2",
+)
+llm = OllamaLLM(model="mistral")
+qa_prompt = ChatPromptTemplate.from_template("""Answer the following question based only on the provided context:
+    <context>
+    {context}
+    </context>
+    Question: {question}""")
+
+class QAState(TypedDict):
+    vector_store: FAISS
+    question: str
+    context: List[Document]
+    answer: str
+
+def retrieve(state: QAState):
+    vector_store = state['vector_store']
+    retrieved_docs = vector_store.similarity_search(state['question'], k=2)
+    return {'context': retrieved_docs}
+
+def generate(state: QAState):
+    retrieved_docs_content = '\n\n'.join(doc.page_content for doc in state['context'])
+    messages = qa_prompt.invoke({"question": state['question'], "context": retrieved_docs_content})
+    response = llm.invoke(messages)
+    return {'answer': response}
+
+# Compile QA application
+qa_workflow_builder = StateGraph(QAState).add_sequence([retrieve, generate])
+qa_workflow_builder.add_edge(START, "retrieve")
+qa_workflow = qa_workflow_builder.compile()
+
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
 @app.route("/upload", methods=["POST"])
-def upload_files():
+async def upload_files():
+    tool = request.form.get('tool')
+    
     if "files" not in request.files:
         return jsonify({"error": "No files uploaded in the request"}), 400
     
@@ -49,10 +87,31 @@ def upload_files():
         file.save(path)
         file_paths.append(path)
 
-    # Store file paths in the session for the respective user
-    session["uploaded_files"] = file_paths
-    session.modified = True  # Mark the session as modified to ensure it gets saved
-    return jsonify({"message":"uploaded", "files": [file.filename for file in uploaded_files]}), 200
+    if tool == 'summary':
+        # Store file paths in the session for the respective user
+        session["uploaded_files"] = file_paths
+        session.modified = True  # Mark the session as modified to ensure it gets saved
+        return jsonify({"message":"uploaded", "files": [file.filename for file in uploaded_files]}), 200
+    
+    elif tool == 'qa':
+        session_id = session.get("session_id")
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            session["session_id"] = session_id
+
+        # Extract data from files
+        file_data = extract_data(file_paths)
+        print("******Data received for qa tool******")
+
+        # Chunk, embed and store in vector DB (im-memory for MVP, persistance DB for the next iteration)
+        vector_store = await chunk_embed(file_data, embedding_model)
+        VECTOR_STORE_CACHE[session_id] = vector_store
+
+        # PERSISTANT STORAGE
+        # vector_store.save_local(f"vectorstores/{session_id}")
+
+
+        return jsonify({"message":"uploaded and embedded", "files": [file.filename for file in uploaded_files]}), 200
 
 @app.route("/generatesummary", methods=["POST"])
 async def generate_summary():
@@ -64,12 +123,12 @@ async def generate_summary():
     
     # file_data = process_files(file_paths)
     file_data = extract_data(file_paths)
-    print("******Data received for summary generation:******")
+    print("******Data received for summary generation******")
 
-    # Placeholder for summary generation 
-    summarized_docs = await summarize_docs(file_data)
+    # Generate summary 
+    summarized_docs = await summarize_docs(file_data, llm)
     print("******Summary generated:******")
-    # Convert each Document → dict
+    # Convert each Document -> dict
     serialized_docs = [
         {"page_content": doc.page_content, "metadata": doc.metadata}
         for doc in summarized_docs
@@ -87,4 +146,25 @@ def clear():
     session.pop("uploaded_files", None)
     return {"message": "Cleared session and files"}
 
+
+@app.route("/ask", methods=["POST"])
+async def ask_llm():
+    session_id = session.get("session_id")
+    if not session_id or session_id not in VECTOR_STORE_CACHE:
+        return {"error": "No vector store found. Please upload documents first."}, 400
+
+    vector_store = VECTOR_STORE_CACHE[session_id]
+    question = request.json["query"]
+
+    # PERSISTANT DB RETRIEVAL
+    # faiss_vectorstore = FAISS.load_local(f"vectorstores/{session_id}", embedding_model)
+
+    # Ask LLM
+    response = qa_workflow.invoke({"vector_store": vector_store, "question": question})
+
+    # Retrieve context and answer
+    answer = response['answer']
+    sources = [doc.page_content for doc in response['context']]
+
+    return  {"answer":answer, "sources":sources}
 
