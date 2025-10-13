@@ -8,6 +8,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langgraph.types import Send
 from langgraph.graph import END, START, StateGraph
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
 from langchain_community.vectorstores import FAISS
 
 
@@ -118,13 +119,26 @@ Take these and distill it into a final, consolidated summary of the main themes.
 
 async def chunk_embed(documents, embedding_model):
     # chunk the docs
+    # Recursive Text Splitter
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=100,
         add_start_index=True,
     )
+    print(documents)
     chunks = text_splitter.split_documents(documents)
 
-    # Embed and store the chunks in-memory [MVP] : To be changed to persistance DB in the next iteration
+    # Semantic Chunker
+    semantic_chunker = SemanticChunker(embedding_model, breakpoint_threshold_type="percentile")
+    chunks = semantic_chunker.create_documents([d.page_content for d in chunks])
+
+    # # Embed and store the chunks in-memory [MVP] : To be changed to persistance DB in the next iteration
+    # # Recursive Text Splitter
+    # faiss_vectorstore = FAISS.from_documents(chunks, embedding_model)
+
+    # Semantic Chunker
     faiss_vectorstore = FAISS.from_documents(chunks, embedding_model)
+     
     return faiss_vectorstore
+
+# 
