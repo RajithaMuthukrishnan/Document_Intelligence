@@ -37,3 +37,8 @@ This project showcases a modern approach to retrieval-augmented generation (RAG)
 <img width="1155" height="726" alt="Summarytool" src="https://github.com/user-attachments/assets/0472fa68-cd0b-4cda-bef4-d8fc2137ebcd" />
 <img width="1159" height="866" alt="summaries" src="https://github.com/user-attachments/assets/7ee3270e-64c6-4553-86f6-37b735872b4a" />
 <img width="1159" height="863" alt="summarymodal" src="https://github.com/user-attachments/assets/b97b3a3c-fb7b-4ba7-8a63-11af67f37c25" />
+
+### QA Tool
+<img width="1459" height="638" alt="QATool" src="https://github.com/user-attachments/assets/053cdaa4-0970-4a5e-9941-6efd9697e3d7" />
+<img width="1451" height="1229" alt="QATool1" src="https://github.com/user-attachments/assets/7ee7d924-3ea7-4ec3-842e-1c6aafe56c74" />
+<img width="1452" height="1229" alt="QATool2" src="https://github.com/user-attachments/assets/da4ad606-4844-4c99-9538-680eef78a73a" />
